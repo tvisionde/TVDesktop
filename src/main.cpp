@@ -1,9 +1,11 @@
 #include "main.h"
-#include <libtvdesktop/desktop.h>
+#include "utils.h"
+
 #include <unistd.h>
 #include <sys/reboot.h>
+#include <filesystem>
 
-TTVDesktopApp::TTVDesktopApp(int argc, char** argv)
+TTVDesktopApp::TTVDesktopApp()
             : TProgInit( &TTVDesktopApp::initStatusLine,
                          &TTVDesktopApp::initMenuBar,
                          &TTVDesktopApp::initDeskTop )
@@ -13,9 +15,10 @@ TTVDesktopApp::TTVDesktopApp(int argc, char** argv)
     // let's create the clock view
     r.a.x = r.b.x - 9;
     r.b.y = r.a.y + 1;
-    clock = new TClockView( r );
+
+    clock = new TClockView(r);
     clock->growMode = gfGrowLoX | gfGrowHiX;
-    insert( clock );
+    insert(clock);
 }
 
 void TTVDesktopApp::handleEvent(TEvent& evt) {
@@ -40,6 +43,14 @@ void TTVDesktopApp::handleEvent(TEvent& evt) {
                         sync();
                         reboot(RB_AUTOBOOT);
                     }
+                    break;
+
+                case cmSave:
+                    saveDesktop();
+                    break;
+                
+                case cmLoad:
+                    // loadDesktop(getLastSaved(), this);
                     break;
             }
             break;
@@ -67,6 +78,25 @@ void TTVDesktopApp::aboutDlgBox() {
     );
 }
 
+void TTVDesktopApp::saveDesktop() {
+    const char* where = getSavePath(getCurrTimeAndDate("%H_%M_%S"));
+    f = new fpstream(where, std::ios::out | std::ios::binary);
+    if (f)
+    {
+        auto writeView = [](TView* view, void* strm) {
+            fpstream* s = (fpstream*) strm;
+            if (view != deskTop->last)
+                *s << view;
+        };
+        deskTop->forEach(writeView, &f);
+        *f << 0;
+    } else {
+        messageBox(strcat("Could not access/create ", where), mfError | mfOKButton);
+    }
+    
+    delete f;
+}
+
 void TTVDesktopApp::idle() {
     TProgram::idle();
     clock->update();
@@ -77,8 +107,8 @@ TMenuBar* TTVDesktopApp::initMenuBar(TRect r) {
     TSubMenu& mainMenu = \
         *new TSubMenu("\xf0", 0, hcNoContext) +
             *new TMenuItem("About", cmAbout, kbNoKey, hcNoContext, "") +
-            *new TMenuItem("Save this session", cmSave, hcSaveSession, "") +
-            *new TMenuItem("Load session...", cmLoad, hcLoadSession, "") +
+            *new TMenuItem("Save this session", cmSave, kbNoKey, hcSaveSession, "") +
+            *new TMenuItem("Load session...", cmLoad, kbNoKey, hcLoadSession, "") +
             newLine() +
             *new TMenuItem("Go to command-line", cmDosShell, kbNoKey, hcDosShell, "") +
             *new TMenuItem("Restart computer", cmRestart, kbAltShiftR, hcNoContext, "Alt+Shift+R") +
@@ -106,7 +136,7 @@ TMenuBar* TTVDesktopApp::initMenuBar(TRect r) {
 */
 int main(int argc, char** argv)
 {
-    TTVDesktopApp *prog = new TTVDesktopApp(argc, argv);
+    TTVDesktopApp *prog = new TTVDesktopApp();
     prog->run();
 
     TObject::destroy( prog );

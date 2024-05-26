@@ -3,24 +3,10 @@
     Copyright (C) 2024 Le Bao Nguyen.
 */
 
-#include <string.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <time.h>
 
+#include "utils.h"
 #include "gadgets.h"
-
-TClockView::TClockView( TRect& r ) : TView( r )
-{
-    /*
-        The long string with spaces has
-        the same length with the time format:
-        HH:MM:SS
-    */
-    strcpy(lastTime, "        ");
-    strcpy(curTime, "        ");
-}
-
 
 void TClockView::draw()
 {
@@ -35,11 +21,9 @@ void TClockView::draw()
 
 void TClockView::update()
 {
-    time_t t = time(0);
-    char *date = ctime(&t);
-
-    date[19] = '\0';
-    strcpy(curTime, &date[11]);
+    // using %T will return the same result as %H:%M:%S
+    char* currTime = getCurrTimeAndDate("%T");
+    strcpy(curTime, currTime);
 
     if( strcmp(lastTime, curTime) )
     {
